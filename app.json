@@ -21,7 +21,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.zebleck.MyFirstApp"
+      "package": "com.fkontor.MyFirstApp"
     },
     "web": {
       "bundler": "metro",
@@ -42,6 +42,6 @@
         "projectId": "5e3e499b-f50c-47b4-bd60-7670482f8051"
       }
     },
-    "owner": "zebleck"
+    "owner": "fkontor"
   }
 }
