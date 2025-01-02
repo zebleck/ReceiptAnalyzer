@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -21,11 +20,9 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.zebleck.MyFirstApp"
+      "package": "com.fkontor.MyFirstApp"
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -42,6 +39,6 @@
         "projectId": "5e3e499b-f50c-47b4-bd60-7670482f8051"
       }
     },
-    "owner": "zebleck"
+    "owner": "fkontor"
   }
 }
