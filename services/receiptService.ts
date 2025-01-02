@@ -3,27 +3,36 @@ import { Receipt, ReceiptItem } from '@/types/supabase';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
-function convertDateFormat(dateStr: string): string {
+function convertToTimestamp(date: string, time: string): string {
   try {
     // Handle European format (DD.MM.YY or DD.MM.YYYY)
-    const [day, month, year] = dateStr.split('.');
+    const [day, month, year] = date.split('.');
+    const [hours, minutes] = time.split(':');
     
     // Convert 2-digit year to 4-digit year
     let fullYear = year.length === 2 ? '20' + year : year;
     
-    // Pad month and day with leading zeros if needed
-    const paddedMonth = month.padStart(2, '0');
-    const paddedDay = day.padStart(2, '0');
-    
-    return `${fullYear}-${paddedMonth}-${paddedDay}`;
+    // Create ISO timestamp
+    return new Date(
+      parseInt(fullYear),
+      parseInt(month) - 1,  // JS months are 0-based
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes)
+    ).toISOString();
   } catch (error) {
-    console.error('Error converting date:', error);
-    return dateStr; // Return original if conversion fails
+    console.error('Error converting to timestamp:', error);
+    return new Date().toISOString(); // Fallback to current time
   }
 }
 
 export const receiptService = {
-  async saveReceipt(receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>, items: Omit<ReceiptItem, 'id' | 'receipt_id' | 'created_at'>[], imageUri: string | null | undefined) {
+  async saveReceipt(
+    receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>, 
+    items: Omit<ReceiptItem, 'id' | 'receipt_id' | 'created_at'>[], 
+    imageUri: string | null | undefined,
+    datetime: { date: string; time: string }
+  ) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -75,16 +84,17 @@ export const receiptService = {
         console.log('Image URL:', image_url);
       }
 
-      // Convert date format before saving
-      const formattedDate = convertDateFormat(receipt.date);
+      // Convert date and time to timestamp
+      const timestamp = convertToTimestamp(datetime.date, datetime.time);
 
-      // Save receipt with formatted date
+      // Save receipt with timestamp and tax
       console.log('Saving receipt with data:', { ...receipt, image_url });
       const { data: receiptData, error: receiptError } = await supabase
         .from('receipts')
         .insert({
           ...receipt,
-          date: formattedDate, // Use the formatted date
+          timestamp,
+          tax_amount: receipt.tax_amount,
           user_id: user.id,
           image_url,
         })

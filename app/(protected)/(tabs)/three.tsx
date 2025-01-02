@@ -10,9 +10,12 @@ import { receiptService } from '@/services/receiptService';
 import { Button as RNPButton } from 'react-native-paper';
 
 interface ReceiptItem {
+  id: string;
+  receipt_id: string;
   name: string;
-  price: number;
+  price?: number;
   quantity?: number;
+  created_at: string;
   tempPrice?: string;
   tempQuantity?: string;
 }
@@ -23,10 +26,21 @@ export default function TabThreeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<{
     store: { name: string };
+    receipt_uid?: string;
+    address?: {
+      street?: string;
+      postal_code?: string;
+      city?: string;
+    };
     date: string;
+    time: string;
     items: ReceiptItem[];
     total: number;
+    taxAmount?: number;
+    tempTaxAmount?: string;
+    tempQualityRating?: string;
     tempTotal?: string;
+    quality_rating: number;
   } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -99,7 +113,7 @@ export default function TabThreeScreen() {
     try {
       setIsAnalyzing(true);
       const result = await analyzeReceipt(base64Data);
-      setAnalysis(result);
+      setAnalysis(result as any);
     } catch (error) {
       console.error('Error analyzing receipt:', error);
     } finally {
@@ -114,16 +128,23 @@ export default function TabThreeScreen() {
       await receiptService.saveReceipt(
         {
           store_name: analysis.store.name,
-          date: analysis.date,
+          receipt_uid: analysis.receipt_uid,
+          street: analysis.address?.street,
+          postal_code: analysis.address?.postal_code,
+          city: analysis.address?.city,
+          timestamp: '',
           total: analysis.total,
+          tax_amount: analysis.taxAmount,
           user_id: 'temp_user_id',
+          quality_rating: analysis.quality_rating,
         },
         analysis.items.map(item => ({
           name: item.name,
           price: item.price,
           quantity: item.quantity || 1,
         })),
-        image || undefined
+        image || undefined,
+        { date: analysis.date, time: analysis.time }
       );
 
       // Show success message
@@ -228,15 +249,93 @@ export default function TabThreeScreen() {
             )}
             
             {editMode ? (
-              <TextInput
-                label="Date"
-                value={analysis.date}
-                onChangeText={(text) => 
-                  setAnalysis({...analysis, date: text})}
-                style={styles.input}
-              />
+              <>
+                <TextInput
+                  label="Date"
+                  value={analysis.date}
+                  onChangeText={(text) => 
+                    setAnalysis({...analysis, date: text})}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Time"
+                  value={analysis.time}
+                  onChangeText={(text) => 
+                    setAnalysis({...analysis, time: text})}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Receipt UID"
+                  value={analysis.receipt_uid || ''}
+                  onChangeText={(text) => 
+                    setAnalysis({...analysis, receipt_uid: text})}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Street"
+                  value={analysis.address?.street || ''}
+                  onChangeText={(text) => 
+                    setAnalysis({
+                      ...analysis, 
+                      address: {...(analysis.address || {}), street: text}
+                    })}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Postal Code"
+                  value={analysis.address?.postal_code || ''}
+                  onChangeText={(text) => 
+                    setAnalysis({
+                      ...analysis, 
+                      address: {...(analysis.address || {}), postal_code: text}
+                    })}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="City"
+                  value={analysis.address?.city || ''}
+                  onChangeText={(text) => 
+                    setAnalysis({
+                      ...analysis, 
+                      address: {...(analysis.address || {}), city: text}
+                    })}
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Quality Rating (1-10)"
+                  value={analysis.tempQualityRating !== undefined ? analysis.tempQualityRating : analysis.quality_rating?.toString()}
+                  onChangeText={(text) => {
+                    const rating = Number(text.replace(',', '.'));
+                    setAnalysis({
+                      ...analysis,
+                      tempQualityRating: text,
+                      quality_rating: !isNaN(rating) && rating >= 1 && rating <= 10 ? rating : analysis.quality_rating
+                    });
+                  }}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </>
             ) : (
-              <Text style={styles.subtitle}>{analysis.date}</Text>
+              <>
+                <Text style={styles.subtitle}>{analysis.date}</Text>
+                <Text style={styles.subtitle}>{analysis.time}</Text>
+                {analysis.receipt_uid && (
+                  <Text style={styles.subtitle}>Receipt UID: {analysis.receipt_uid}</Text>
+                )}
+                {analysis.address && (
+                  <Text style={styles.subtitle}>
+                    {[
+                      analysis.address.street,
+                      analysis.address.postal_code,
+                      analysis.address.city
+                    ].filter(Boolean).join(', ')}
+                  </Text>
+                )}
+                <Text style={styles.subtitle}>
+                  Quality Rating: {analysis.quality_rating}/10
+                </Text>
+              </>
             )}
             
             <List.Section>
@@ -245,21 +344,31 @@ export default function TabThreeScreen() {
                 <List.Item
                   key={index}
                   title={editMode ? (
-                    <TextInput
-                      value={item.name}
-                      onChangeText={(text) => {
-                        const newItems = [...analysis.items];
-                        newItems[index] = {...item, name: text};
-                        setAnalysis({...analysis, items: newItems});
-                      }}
-                      style={styles.itemNameInput}
-                    />
+                    <View style={styles.itemTitleContainer}>
+                      <TextInput
+                        value={item.name}
+                        onChangeText={(text) => {
+                          const newItems = [...analysis.items];
+                          newItems[index] = {...item, name: text};
+                          setAnalysis({...analysis, items: newItems});
+                        }}
+                        style={styles.itemNameInput}
+                      />
+                      <IconButton
+                        icon="delete"
+                        size={20}
+                        onPress={() => {
+                          const newItems = analysis.items.filter((_, i) => i !== index);
+                          setAnalysis({...analysis, items: newItems});
+                        }}
+                      />
+                    </View>
                   ) : (
                     item.name
                   )}
                   description={editMode ? (
                     <TextInput
-                      value={item.tempPrice !== undefined ? item.tempPrice : item.price.toString()}
+                      value={item.tempPrice !== undefined ? item.tempPrice : item.price?.toString() || '0'}
                       onChangeText={(text) => {
                         const newItems = [...analysis.items];
                         newItems[index] = {
@@ -273,7 +382,7 @@ export default function TabThreeScreen() {
                       style={styles.priceInput}
                     />
                   ) : (
-                    `$${item.price.toFixed(2)}`
+                    `$${item.price?.toFixed(2) || '0.00'}`
                   )}
                   right={() => editMode ? (
                     <TextInput
@@ -297,21 +406,67 @@ export default function TabThreeScreen() {
               ))}
             </List.Section>
 
+            {editMode && (
+              <View style={styles.itemControls}>
+                <Button 
+                  mode="outlined" 
+                  onPress={() => {
+                    setAnalysis({
+                      ...analysis,
+                      items: [
+                        ...analysis.items,
+                        {
+                          id: `temp-${Date.now()}`,
+                          receipt_id: '',
+                          name: '',
+                          created_at: new Date().toISOString(),
+                          tempPrice: '',
+                          tempQuantity: ''
+                        }
+                      ]
+                    });
+                  }}
+                  style={styles.addButton}
+                >
+                  Add Item
+                </Button>
+              </View>
+            )}
+
             {editMode ? (
-              <TextInput
-                label="Total"
-                value={analysis.tempTotal !== undefined ? analysis.tempTotal : analysis.total.toString()}
-                onChangeText={(text) => 
-                  setAnalysis({
-                    ...analysis,
-                    tempTotal: text,
-                    total: text.trim() ? Number(text.replace(',', '.')) || 0 : 0
-                  })}
-                keyboardType="numeric"
-                style={styles.input}
-              />
+              <>
+                <TextInput
+                  label="Tax Amount"
+                  value={analysis.tempTaxAmount !== undefined ? analysis.tempTaxAmount : analysis.taxAmount?.toString() || ''}
+                  onChangeText={(text) => 
+                    setAnalysis({
+                      ...analysis,
+                      tempTaxAmount: text,
+                      taxAmount: text.trim() ? Number(text.replace(',', '.')) : undefined
+                    })}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Total"
+                  value={analysis.tempTotal !== undefined ? analysis.tempTotal : analysis.total.toString()}
+                  onChangeText={(text) => 
+                    setAnalysis({
+                      ...analysis,
+                      tempTotal: text,
+                      total: text.trim() ? Number(text.replace(',', '.')) || 0 : 0
+                    })}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </>
             ) : (
-              <Text style={styles.total}>Total: ${analysis.total.toFixed(2)}</Text>
+              <>
+                {analysis.taxAmount && (
+                  <Text style={styles.subtitle}>Tax: ${analysis.taxAmount.toFixed(2)}</Text>
+                )}
+                <Text style={styles.total}>Total: ${analysis.total.toFixed(2)}</Text>
+              </>
             )}
           </Card.Content>
           <Card.Actions>
@@ -512,6 +667,11 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
   },
+  itemTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   itemNameInput: {
     flex: 1,
     fontSize: 16,
@@ -542,5 +702,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     margin: 16,
+  },
+  itemControls: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  addButton: {
+    marginTop: 8,
   },
 });
