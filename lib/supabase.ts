@@ -5,6 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
+console.log('ENV vars:', {
+  url: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+});
+
 // Create custom storage object that falls back to empty implementation when AsyncStorage is not available
 const ExpoSecureStorage = {
   getItem: async (key: string) => {
