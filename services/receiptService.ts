@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Receipt, ReceiptItem } from '@/types/supabase';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 function convertDateFormat(dateStr: string): string {
   try {
@@ -34,19 +36,35 @@ export const receiptService = {
         const fileName = `${Date.now()}.jpg`;
         console.log('Uploading image:', fileName);
         
-        // Convert image URI to Blob
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
+        if (Platform.OS === 'web') {
+          // Web: Use Blob
+          const response = await fetch(imageUri);
+          const blob = await response.blob();
+          
+          const { data: imageData, error: imageError } = await supabase.storage
+            .from('receipts')
+            .upload(fileName, blob, {
+              contentType: 'image/jpeg',
+            });
 
-        const { data: imageData, error: imageError } = await supabase.storage
-          .from('receipts')
-          .upload(fileName, blob, {
-            contentType: 'image/jpeg',
-          });
+          if (imageError) throw imageError;
+        } else {
+          // Mobile: Use FormData and fetch
+          const formData = new FormData();
+          formData.append('file', {
+            uri: imageUri,
+            name: fileName,
+            type: 'image/jpeg',
+          } as any);
 
-        console.log('Image upload result:', { imageData, imageError });
+          const { data: imageData, error: imageError } = await supabase.storage
+            .from('receipts')
+            .upload(fileName, formData, {
+              contentType: 'multipart/form-data',
+            });
 
-        if (imageError) throw imageError;
+          if (imageError) throw imageError;
+        }
 
         // Get public URL for the uploaded image
         const { data: { publicUrl } } = supabase.storage

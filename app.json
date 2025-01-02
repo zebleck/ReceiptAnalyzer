@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
+    "scheme": "myapp",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
