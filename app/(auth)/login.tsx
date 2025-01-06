@@ -22,7 +22,7 @@ export default function LoginScreen() {
 
       if (error) throw error;
       
-      router.replace('/(protected)/(tabs)/three');
+      router.replace('/');
     } catch (error: any) {
       setError(error.message);
     } finally {
